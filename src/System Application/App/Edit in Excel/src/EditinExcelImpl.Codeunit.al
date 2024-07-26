@@ -20,10 +20,10 @@ codeunit 1482 "Edit in Excel Impl."
     InherentPermissions = X;
 
 #if not CLEAN22
-    Permissions = TableData "Tenant Web Service OData" = rimd,
-                  TableData "Tenant Web Service Columns" = rimd,
-                  TableData "Tenant Web Service Filter" = rimd,
-                  TableData "Tenant Web Service" = r;
+    Permissions = tabledata "Tenant Web Service" = r,
+                  tabledata "Tenant Web Service Columns" = rimd,
+                  tabledata "Tenant Web Service Filter" = rimd,
+                  tabledata "Tenant Web Service OData" = rimd;
 #endif
 
     var
@@ -43,9 +43,11 @@ codeunit 1482 "Edit in Excel Impl."
         CreateEndpointForObjectTxt: Label 'Creating endpoint for %1 %2.', Locked = true;
         EditInExcelHandledTxt: Label 'Edit in excel has been handled.', Locked = true;
         EditInExcelOnlySupportPageWebServicesTxt: Label 'Edit in Excel only support web services created from pages.', Locked = true;
+        EditInExcelInvalidFilterErr: Label 'We had to remove the filters applied to the following fields, because they are not available in the Office Add-In. Please notice that as a result of this the number of rows you exported to Excel could vary.\ %1', Comment = '%1 = The field filters we had to remove because they are not exposed through OData';
         DialogTitleTxt: Label 'Export';
         ExcelFileNameTxt: Text;
         XmlByteEncodingTok: Label '_x00%1_%2', Locked = true;
+        XmlByteEncoding2Tok: Label '%1_x00%2_%3', Locked = true;
 
     procedure EditPageInExcel(PageCaption: Text[240]; PageId: Integer; EditinExcelFilters: Codeunit "Edit in Excel Filters"; FileName: Text)
     var
@@ -95,7 +97,7 @@ codeunit 1482 "Edit in Excel Impl."
         EditinExcelWorkbook: Codeunit "Edit in Excel Workbook";
     begin
         if (not TenantWebService.Get(TenantWebService."Object Type"::Page, ServiceName)) then
-            error(EditInExcelOnlySupportPageWebServicesTxt);
+            Error(EditInExcelOnlySupportPageWebServicesTxt);
 
         Session.LogMessage('0000DB6', StrSubstNo(CreateEndpointForObjectTxt, TenantWebService."Object Type", TenantWebService."Object ID"), Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', EditInExcelTelemetryCategoryTxt);
 
@@ -110,7 +112,7 @@ codeunit 1482 "Edit in Excel Impl."
     var
         FieldsTable: Record "Field";
         PageControlField: Record "Page Control Field";
-        PageMetadata: record "Page Metadata";
+        PageMetadata: Record "Page Metadata";
         DocumentSharing: Codeunit "Document Sharing";
         RecordRef: RecordRef;
         VarFieldRef: FieldRef;
@@ -301,9 +303,9 @@ codeunit 1482 "Edit in Excel Impl."
         DataEntityExportInfo.EnableDesign := true;
         DataEntityExportInfo.RefreshOnOpen := true;
         DataEntityExportInfo.DateCreated := CurrentDateTime();
-        DataEntityExportInfo.GenerationActivityId := format(SessionId());
+        DataEntityExportInfo.GenerationActivityId := Format(SessionId());
 
-        DocumentId := format(CreateGuid(), 0, 4);
+        DocumentId := Format(CreateGuid(), 0, 4);
         DataEntityExportInfo.DocumentId := DocumentId;
         Session.LogMessage('0000GYB', StrSubstNo(CreatingExcelDocumentWithIdTxt, DocumentId), Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', EditInExcelTelemetryCategoryTxt);
 
@@ -349,7 +351,7 @@ codeunit 1482 "Edit in Excel Impl."
         exit(ServiceName);
     end;
 
-    local procedure NameBeginsWithADigit(Name: text[240]): Boolean
+    local procedure NameBeginsWithADigit(Name: Text[240]): Boolean
     begin
         if Name[1] in ['0' .. '9'] then
             exit(true);
@@ -436,7 +438,7 @@ codeunit 1482 "Edit in Excel Impl."
 
     local procedure CreateOfficeAppInfo(var OfficeAppInfo: DotNet OfficeAppInfo)  // Note: Keep this in sync with BaseApp - ODataUtility
     var
-        EditinExcelSettings: record "Edit in Excel Settings";
+        EditinExcelSettings: Record "Edit in Excel Settings";
     begin
         OfficeAppInfo := OfficeAppInfo.OfficeAppInfo();
         if EditinExcelSettings.Get() and EditinExcelSettings."Use Centralized deployments" then begin
@@ -704,10 +706,13 @@ codeunit 1482 "Edit in Excel Impl."
     end;
 #endif
 
+
     procedure ExternalizeODataObjectName(Name: Text) ConvertedName: Text
     var
         CurrentPosition: Integer;
         Convert: DotNet Convert;
+        StartStr: Text;
+        EndStr: Text;
         ByteValue: DotNet Byte;
     begin
         ConvertedName := Name;
@@ -729,15 +734,23 @@ codeunit 1482 "Edit in Excel Impl."
         CurrentPosition := 1;
 
         while CurrentPosition <= StrLen(ConvertedName) do begin
-            if ConvertedName[CurrentPosition] in [' ', '\', '/', '''', '"', '.', '(', ')', '-', ':'] then
-                if CurrentPosition > 1 then begin
-                    if ConvertedName[CurrentPosition - 1] = '_' then begin
-                        ConvertedName := DelStr(ConvertedName, CurrentPosition, 1);
-                        CurrentPosition -= 1;
+            if ConvertedName[CurrentPosition] in ['''', '+'] then begin
+                ByteValue := Convert.ToByte(ConvertedName[CurrentPosition]);
+                StartStr := CopyStr(ConvertedName, 1, CurrentPosition - 1);
+                EndStr := CopyStr(ConvertedName, CurrentPosition + 1);
+                ConvertedName := StrSubstNo(XmlByteEncoding2Tok, StartStr, Convert.ToString(ByteValue, 16), EndStr);
+                // length of _x00nn_ minus one that will be added later
+                CurrentPosition += 6;
+            end else
+                if ConvertedName[CurrentPosition] in [' ', '\', '/', '"', '.', '(', ')', '-', ':'] then
+                    if CurrentPosition > 1 then begin
+                        if ConvertedName[CurrentPosition - 1] = '_' then begin
+                            ConvertedName := DelStr(ConvertedName, CurrentPosition, 1);
+                            CurrentPosition -= 1;
+                        end else
+                            ConvertedName[CurrentPosition] := '_';
                     end else
                         ConvertedName[CurrentPosition] := '_';
-                end else
-                    ConvertedName[CurrentPosition] := '_';
 
             CurrentPosition += 1;
         end;
@@ -842,6 +855,7 @@ codeunit 1482 "Edit in Excel Impl."
     var
         TenantWebService: Record "Tenant Web Service";
         EditinExcelFilters: Codeunit "Edit in Excel Filters";
+        FilterErrors: Dictionary of [Text, Boolean];
         Handled: Boolean;
     begin
         EditinExcel.OnEditInExcelWithStructuredFilter(ServiceName, Filter, Payload, SearchString, Handled);
@@ -853,13 +867,26 @@ codeunit 1482 "Edit in Excel Impl."
         if not TenantWebService.Get(TenantWebService."Object Type"::Page, ServiceName) then
             exit;
 
-        EditinExcelFilters.ReadFromJsonFilters(Filter, Payload, TenantWebService."Object ID");
+        EditinExcelFilters.ReadFromJsonFilters(Filter, Payload, TenantWebService."Object ID", FilterErrors);
         EditinExcel.OnEditInExcelWithFilters(ServiceName, EditinExcelFilters, SearchString, Handled);
         if Handled then begin
             Session.LogMessage('0000IG8', EditInExcelHandledTxt, Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', EditInExcelTelemetryCategoryTxt);
             exit;
         end;
-
+        if FilterErrors.Count() > 0 then
+            Message(EditInExcelInvalidFilterErr, FormatFilterErrors(FilterErrors));
         GetEndPointAndCreateWorkbookWStructuredFilter(ServiceName, EditinExcelFilters, SearchString);
+    end;
+
+    local procedure FormatFilterErrors(FilterErrors: Dictionary of [Text, Boolean]): Text
+    var
+        ConcatenatedErrors: Text;
+        ErrorText: Text;
+    begin
+        foreach ErrorText in FilterErrors.Keys() do
+            ConcatenatedErrors := ConcatenatedErrors + ErrorText + ', ';
+        if StrLen(ConcatenatedErrors) > 0 then
+            ConcatenatedErrors := DelStr(ConcatenatedErrors, StrLen(ConcatenatedErrors) - 1);
+        exit(ConcatenatedErrors);
     end;
 }

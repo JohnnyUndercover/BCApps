@@ -89,10 +89,9 @@ codeunit 2010 "Entity Text"
     /// <param name="EntityTextContent">The new entity text content.</param>
     procedure UpdateText(var EntityText: Record "Entity Text"; EntityTextContent: Text)
     var
-        TelemetryCategoryLbl: Label 'Entity Text', Locked = true;
         TelemetryUpdateRecordTxt: Label 'Updating text on record for table %1 and scenario %2.', Locked = true, Comment = '%1 the table id, %2 the scenario id';
     begin
-        Session.LogMessage('0000JVL', StrSubstNo(TelemetryUpdateRecordTxt, Format(EntityText."Source Table Id"), Format(EntityText.Scenario)), Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', TelemetryCategoryLbl);
+        Session.LogMessage('0000JVL', StrSubstNo(TelemetryUpdateRecordTxt, Format(EntityText."Source Table Id"), Format(EntityText.Scenario)), Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', EntityTextImpl.GetFeatureName());
         EntityTextImpl.SetText(EntityText, EntityTextContent);
     end;
 
@@ -102,7 +101,7 @@ codeunit 2010 "Entity Text"
     /// <param name="Endpoint">The endpoint to use.</param>
     /// <param name="Deployment">The deployment to use for the endpoint.</param>
     /// <param name="ApiKey">The API key to use for the endpoint.</param>
-    /// <remarks>Endpoint would look like: https://resource-name.openai.azure.com/ 
+    /// <remarks>Endpoint would look like: https://resource-name.openai.azure.com/
     /// Deployment would look like: gpt-35-turbo-16k
     /// </remarks>
     procedure SetEntityTextAuthorization(Endpoint: Text; Deployment: Text; ApiKey: SecretText)

@@ -31,6 +31,8 @@ permissionset 154 "System Application - Admin"
                              "Permissions & Licenses - Edit",
                              "Priv. Notice - Admin",
                              "Retention Policy - Admin",
+                             "PageScripting - Play",
                              "Page Summary - Admin",
-                             "TROUBLESHOOT TOOLS";
+                             "TROUBLESHOOT TOOLS",
+                             "VSC Intgr. - Admin";
 }

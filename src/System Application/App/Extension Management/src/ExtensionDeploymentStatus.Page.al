@@ -5,6 +5,8 @@
 
 namespace System.Apps;
 
+using System.Environment;
+
 /// <summary>
 /// Displays the deployment status for extensions that are deployed or are scheduled for deployment.
 /// </summary>
@@ -23,7 +25,7 @@ page 2508 "Extension Deployment Status"
 
     layout
     {
-        area(content)
+        area(Content)
         {
             repeater(Group)
             {
@@ -78,7 +80,7 @@ page 2508 "Extension Deployment Status"
 
     actions
     {
-        area(processing)
+        area(Processing)
         {
             action(View)
             {
@@ -86,8 +88,7 @@ page 2508 "Extension Deployment Status"
                 ToolTip = 'Specifies the status of the deployment.';
                 Image = View;
                 Scope = Repeater;
-                ShortCutKey = 'Return';
-                Visible = false;
+                ShortcutKey = 'Return';
 
                 trigger OnAction()
                 var
@@ -99,6 +100,51 @@ page 2508 "Extension Deployment Status"
                     ExtnDeploymentStatusDetail.Run();
                 end;
             }
+            action(Refresh)
+            {
+                ApplicationArea = All;
+                ToolTip = 'Refresh the deployment details.';
+                Image = Refresh;
+
+                trigger OnAction()
+                var
+                    NavAppTenantOperationTable: Record "NAV App Tenant Operation";
+                    ExtensionOperationImpl: Codeunit "Extension Operation Impl";
+                begin
+                    NavAppTenantOperationTable.Copy(Rec);
+                    NavAppTenantOperationTable.SetFilter(Status, '%1|%2|%3', NavAppTenantOperationTable.Status::Unknown, NavAppTenantOperationTable.Status::NotFound, NavAppTenantOperationTable.Status::InProgress);
+                    if NavAppTenantOperationTable.FindSet() then
+                        repeat
+                            ExtensionOperationImpl.RefreshStatus(NavAppTenantOperationTable."Operation ID");
+                        until NavAppTenantOperationTable.Next() = 0;
+                end;
+            }
+            action("Upload Extension")
+            {
+                ApplicationArea = All;
+                Caption = 'Upload Extension';
+                Image = Import;
+                RunObject = page "Upload And Deploy Extension";
+                ToolTip = 'Upload an extension to your application.';
+                Ellipsis = true;
+                Visible = IsSaaS;
+            }
+        }
+        area(Navigation)
+        {
+            action(ExtensionManagement)
+            {
+                Caption = 'Extension Management';
+                ApplicationArea = All;
+                ToolTip = 'Open the Extension Management page.';
+                Image = Setup;
+                RunObject = Page "Extension Management";
+            }
+        }
+        area(Promoted)
+        {
+            actionref(Refresh_Promoted; Refresh) { }
+            actionref(View_Promoted; View) { }
         }
     }
 
@@ -121,6 +167,15 @@ page 2508 "Extension Deployment Status"
     begin
         Rec.SetCurrentKey("Started On");
         Rec.Ascending(false);
+
+        DetermineEnvironmentConfigurations();
+    end;
+
+    local procedure DetermineEnvironmentConfigurations()
+    var
+        EnvironmentInformation: Codeunit "Environment Information";
+    begin
+        IsSaaS := EnvironmentInformation.IsSaaS();
     end;
 
     var
@@ -129,6 +184,7 @@ page 2508 "Extension Deployment Status"
         AppPublisher: Text;
         AppName: Text;
         OperationType: Option Upload,Install;
+        IsSaaS: Boolean;
 }
 
 

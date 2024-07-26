@@ -14,8 +14,8 @@ using System.Integration.Excel;
 codeunit 132524 "Edit in Excel Test Library"
 {
 #if not CLEAN22
-    /// <summary>    
-    /// Calls the CreateDataEntityExportInfo function of the Edit in Excel Impl. codeunit. This function exists purely 
+    /// <summary>
+    /// Calls the CreateDataEntityExportInfo function of the Edit in Excel Impl. codeunit. This function exists purely
     /// for test purposes.
     /// </summary>
     /// <param name="TenantWebService">The tenant web service to create data entity export info for.</param>
@@ -32,8 +32,8 @@ codeunit 132524 "Edit in Excel Test Library"
     end;
 #endif
 
-    /// <summary>    
-    /// Calls the ExternalizeODataObjectName function of the Edit in Excel Impl. codeunit. This function exists purely 
+    /// <summary>
+    /// Calls the ExternalizeODataObjectName function of the Edit in Excel Impl. codeunit. This function exists purely
     /// for test purposes.
     /// </summary>
     /// <param name="Name">The name to convert to OData field</param>
@@ -46,7 +46,7 @@ codeunit 132524 "Edit in Excel Test Library"
     end;
 
     /// <summary>
-    /// Calls the ReadFromJsonFilters function of the Edit in Excel Filters codeunit. This function exists purely 
+    /// Calls the ReadFromJsonFilters function of the Edit in Excel Filters codeunit. This function exists purely
     /// for test purposes.
     /// </summary>
     /// <param name="EditinExcelFilters">The excel filter codeunit onto which the filters are applied.</param>
@@ -55,12 +55,14 @@ codeunit 132524 "Edit in Excel Test Library"
     /// <param name="PageId">The ID of the page being filtered on.</param>
     [Scope('OnPrem')]
     procedure ReadFromJsonFilters(var EditinExcelFilters: Codeunit "Edit in Excel Filters"; JsonFilter: JsonObject; JsonPayload: JsonObject; PageId: Integer)
+    var
+        FilterErrors: Dictionary of [Text, Boolean];
     begin
-        EditinExcelFilters.ReadFromJsonFilters(JsonFilter, JsonPayload, PageId);
+        EditinExcelFilters.ReadFromJsonFilters(JsonFilter, JsonPayload, PageId, FilterErrors);
     end;
 
     /// <summary>
-    /// Calls the GetFilters function of the Edit in Excel Filters codeunit. This function exists purely 
+    /// Calls the GetFilters function of the Edit in Excel Filters codeunit. This function exists purely
     /// for test purposes.
     /// </summary>
     /// <param name="EditinExcelFilters">The excel filter codeunit onto which the filters are applied.</param>
@@ -72,7 +74,7 @@ codeunit 132524 "Edit in Excel Test Library"
     end;
 
     /// <summary>
-    /// Calls the ReduceRedundantFilterCollectionNodes function of the Edit in Excel Impl. codeunit. This function exists purely 
+    /// Calls the ReduceRedundantFilterCollectionNodes function of the Edit in Excel Impl. codeunit. This function exists purely
     /// for test purposes.
     /// </summary>
     /// <param name="EntityfilterCollectionNode">The filter collection node to reduce</param>

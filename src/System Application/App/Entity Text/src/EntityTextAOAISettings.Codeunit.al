@@ -10,7 +10,6 @@ using System.AI;
 using System.Azure.KeyVault;
 using System.Environment;
 
-
 /// <summary>
 /// Implements functionality to call Azure OpenAI.
 /// </summary>
@@ -22,21 +21,23 @@ codeunit 2011 "Entity Text AOAI Settings"
 
     procedure IsEnabled(Silent: Boolean): Boolean
     var
+        [SecurityFiltering(SecurityFilter::Ignored)]
         EntityText: Record "Entity Text";
         AzureOpenAI: Codeunit "Azure OpenAI";
+        CopilotCapability: Codeunit "Copilot Capability";
     begin
         if not GuiAllowed() then begin
             Session.LogMessage('0000LJA', TelemetryGuiNotAllowedTxt, Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', TelemetryCategoryLbl);
             exit(false);
         end;
 
-        if not IsSupportedLanguage() then begin
-            Session.LogMessage('0000JXG', TelemetryUnsupportedLanguageTxt, Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', TelemetryCategoryLbl);
+        if not EntityText.WritePermission() then begin
+            Session.LogMessage('0000JY0', TelemetryMissingPermissionTxt, Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', TelemetryCategoryLbl);
             exit(false);
         end;
 
-        if not EntityText.WritePermission() then begin
-            Session.LogMessage('0000JY0', TelemetryMissingPermissionTxt, Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', TelemetryCategoryLbl);
+        if not CopilotCapability.IsCapabilityRegistered(enum::"Copilot Capability"::"Entity Text") then begin
+            Session.LogMessage('0000M56', TelemetryCapabilityNotRegisteredTxt, Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', TelemetryCategoryLbl);
             exit(false);
         end;
 
@@ -83,16 +84,6 @@ codeunit 2011 "Entity Text AOAI Settings"
         exit(false);
     end;
 
-    local procedure IsSupportedLanguage(): Boolean
-    var
-        SupportedLanguages: Enum "Entity Text Languages";
-        LanguageName: Text;
-    begin
-        LanguageName := LowerCase(GetLanguageName()).Split(' ').Get(1);
-
-        exit(SupportedLanguages.Names.Contains(LanguageName));
-    end;
-
     procedure GetLanguageName(): Text
     var
         Language: Codeunit Language;
@@ -109,9 +100,9 @@ codeunit 2011 "Entity Text AOAI Settings"
 
     var
         TelemetryCategoryLbl: Label 'AOAI', Locked = true;
+        TelemetryCapabilityNotRegisteredTxt: Label 'Copilot Capability for Entity Text is not registered.', Locked = true;
         TelemetryAOAIDisabledTxt: Label 'AOAI is disabled for Entity Text.', Locked = true;
         TelemetryPrivacyResultTxt: Label 'AOAI is enabled for Entity Text', Locked = true;
         TelemetryMissingPermissionTxt: Label 'Feature is disabled due to missing write permissions.', Locked = true;
-        TelemetryUnsupportedLanguageTxt: Label 'The user is not using a supported language.', Locked = true;
         TelemetryGuiNotAllowedTxt: Label 'Entity Text called in a non-interactive session.', Locked = true;
 }

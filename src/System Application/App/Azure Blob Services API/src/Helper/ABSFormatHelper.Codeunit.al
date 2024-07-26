@@ -15,7 +15,6 @@ codeunit 9044 "ABS Format Helper"
     InherentEntitlements = X;
     InherentPermissions = X;
 
-    [NonDebuggable]
     procedure AppendToUri(var UriText: Text; ParameterIdentifier: Text; ParameterValue: Text)
     var
         Uri: Codeunit Uri;
@@ -34,19 +33,16 @@ codeunit 9044 "ABS Format Helper"
             UriText += StrSubstNo(AppendType2Lbl, ConcatChar, EscapedParameterValue)
     end;
 
-    [NonDebuggable]
     procedure RemoveCurlyBracketsFromString("Value": Text): Text
     begin
         exit(DelChr("Value", '=', '{}'));
     end;
 
-    [NonDebuggable]
     procedure GetBase64BlockId(): Text
     begin
         exit(GetBase64BlockId(RemoveCurlyBracketsFromString(Format(CreateGuid()))));
     end;
 
-    [NonDebuggable]
     procedure GetBase64BlockId(BlockId: Text): Text
     var
         Base64Convert: Codeunit "Base64 Convert";
@@ -55,7 +51,6 @@ codeunit 9044 "ABS Format Helper"
         exit(Uri.EscapeDataString(Base64Convert.ToBase64(BlockId)));
     end;
 
-    [NonDebuggable]
     procedure BlockDictionariesToBlockListDictionary(CommitedBlocks: Dictionary of [Text, Integer]; UncommitedBlocks: Dictionary of [Text, Integer]; var BlockList: Dictionary of [Text, Text]; OverwriteValueToLatest: Boolean)
     var
         Keys: List of [Text];
@@ -77,7 +72,6 @@ codeunit 9044 "ABS Format Helper"
             BlockList.Add("Key", "Value");
     end;
 
-    [NonDebuggable]
     procedure BlockListDictionaryToXmlDocument(BlockList: Dictionary of [Text, Text]): XmlDocument
     var
         Document: XmlDocument;
@@ -96,7 +90,6 @@ codeunit 9044 "ABS Format Helper"
         exit(Document);
     end;
 
-    [NonDebuggable]
     procedure TagsDictionaryToXmlDocument(Tags: Dictionary of [Text, Text]): XmlDocument
     var
         Document: XmlDocument;
@@ -122,7 +115,6 @@ codeunit 9044 "ABS Format Helper"
         exit(Document);
     end;
 
-    [NonDebuggable]
     procedure XmlDocumentToTagsDictionary(Document: XmlDocument): Dictionary of [Text, Text]
     var
         Tags: Dictionary of [Text, Text];
@@ -146,7 +138,6 @@ codeunit 9044 "ABS Format Helper"
         exit(Tags);
     end;
 
-    [NonDebuggable]
     local procedure GetSingleNodeInnerText(Node: XmlNode; XPath: Text): Text
     var
         ChildNode: XmlNode;
@@ -158,15 +149,13 @@ codeunit 9044 "ABS Format Helper"
         exit(XmlElement.InnerText());
     end;
 
-    [NonDebuggable]
     procedure TagsDictionaryToSearchExpression(Tags: Dictionary of [Text, Text]): Text
     var
-        UriHelper: Codeunit "Uri";
         Keys: List of [Text];
         "Key": Text;
         SingleQuoteChar: Char;
         Expression: Text;
-        ExpressionPartLbl: Label '"%1" %2 %3%4%5', Comment = '%1 = Tag, %2 = Operator, %3 = Single Quote, %4 = Value, %5 = Single Quote';
+        ExpressionPartLbl: Label '"%1" %2 %3%4%5', Comment = '%1 = Tag, %2 = Operator, %3 = Single Quote, %4 = Value, %5 = Single Quote', Locked = true;
     begin
         SingleQuoteChar := 39;
         Keys := Tags.Keys;
@@ -175,11 +164,9 @@ codeunit 9044 "ABS Format Helper"
                 Expression += ' AND ';
             Expression += StrSubstNo(ExpressionPartLbl, "Key".Trim(), GetOperatorFromValue(Tags.Get("Key")).Trim(), SingleQuoteChar, GetValueWithoutOperator(Tags.Get("Key")).Trim(), SingleQuoteChar);
         end;
-        Expression := UriHelper.EscapeDataString(Expression);
         exit(Expression);
     end;
 
-    [NonDebuggable]
     procedure QueryExpressionToQueryBlobContent(QueryExpression: Text): XmlDocument
     var
         Document: XmlDocument;
@@ -196,7 +183,6 @@ codeunit 9044 "ABS Format Helper"
         exit(Document);
     end;
 
-    [NonDebuggable]
     local procedure GetOperatorFromValue("Value": Text): Text
     var
         NewValue: Text;
@@ -205,7 +191,6 @@ codeunit 9044 "ABS Format Helper"
         exit(NewValue.Trim());
     end;
 
-    [NonDebuggable]
     local procedure GetValueWithoutOperator("Value": Text): Text
     var
         NewValue: Text;
@@ -214,7 +199,6 @@ codeunit 9044 "ABS Format Helper"
         exit(NewValue.Trim());
     end;
 
-    [NonDebuggable]
     procedure TextToXmlDocument(SourceText: Text): XmlDocument
     var
         Document: XmlDocument;

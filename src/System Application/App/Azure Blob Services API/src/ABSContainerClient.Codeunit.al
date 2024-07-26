@@ -20,7 +20,6 @@ codeunit 9052 "ABS Container Client"
     /// </summary>
     /// <param name="StorageAccount">The name of Storage Account to use.</param>
     /// <param name="Authorization">The authorization to use.</param>
-    [NonDebuggable]
     procedure Initialize(StorageAccount: Text; Authorization: Interface "Storage Service Authorization")
     var
         StorageServiceAuthorization: Codeunit "Storage Service Authorization";
@@ -33,7 +32,6 @@ codeunit 9052 "ABS Container Client"
     /// </summary>
     /// <param name="StorageAccount">The Storage Account to use.</param>
     /// <param name="ApiVersion">The API version to use.</param>
-    [NonDebuggable]
     procedure Initialize(StorageAccount: Text; Authorization: Interface "Storage Service Authorization"; ApiVersion: Enum "Storage Service API Version")
     begin
         ABSClientImpl.Initialize(StorageAccount, '', '', Authorization, ApiVersion);
@@ -41,7 +39,7 @@ codeunit 9052 "ABS Container Client"
 
     /// <summary>
     /// The base URL to use when constructing the final URI.
-    /// If not set, the base URL is https://%1.blob.core.windows.net where %1 is the storage account name. 
+    /// If not set, the base URL is https://%1.blob.core.windows.net where %1 is the storage account name.
     /// </summary>
     /// <remarks>Use %1 as a placeholder for the storage account name.</remarks>
     /// <param name="BaseUrl">A valid URL string</param>
@@ -158,7 +156,7 @@ codeunit 9052 "ABS Container Client"
     /// <summary>
     /// Requests a new lease. If the container does not have an active lease, the blob service creates a lease on the container. The lease duration can be 15 to 60 seconds or can be infinite
     /// see: https://go.microsoft.com/fwlink/?linkid=2211318
-    /// </summary>    
+    /// </summary>
     /// <param name="ContainerName">The name of the container.</param>
     /// <param name="DurationSeconds">Specifies the duration of the lease, in seconds, or negative one (-1) for a lease that never expires</param>
     /// <param name="LeaseId">Guid containing the response value from x-ms-lease-id HttpHeader</param>
@@ -174,7 +172,7 @@ codeunit 9052 "ABS Container Client"
     /// <summary>
     /// Requests a new lease. If the container does not have an active lease, the blob service creates a lease on the container. The lease duration can be 15 to 60 seconds or can be infinite
     /// see: https://go.microsoft.com/fwlink/?linkid=2211318
-    /// </summary>    
+    /// </summary>
     /// <param name="ContainerName">The name of the container.</param>
     /// <param name="DurationSeconds">Specifies the duration of the lease, in seconds, or negative one (-1) for a lease that never expires</param>
     /// <param name="ABSOptionalParameters">Optional parameters to pass.</param>
@@ -219,7 +217,7 @@ codeunit 9052 "ABS Container Client"
     /// <summary>
     /// Requests a new lease. If the container does not have an active lease, the blob service creates a lease on the container. The lease duration can be 15 to 60 seconds or can be infinite
     /// see: https://go.microsoft.com/fwlink/?linkid=2211318
-    /// </summary>     
+    /// </summary>
     /// <param name="ContainerName">The name of the container.</param>
     /// <param name="DurationSeconds">Specifies the duration of the lease, in seconds, or negative one (-1) for a lease that never expires</param>
     /// <param name="ProposedLeaseId">Proposed lease ID, in a GUID string format</param>

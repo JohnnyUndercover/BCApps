@@ -14,9 +14,9 @@ codeunit 9871 "Security Group Impl."
     Access = Internal;
     InherentEntitlements = X;
     InherentPermissions = X;
-    Permissions = tabledata User = rimd,
-                  tabledata "User Property" = rimd,
-                  tabledata "Security Group" = rimd;
+    Permissions = tabledata "Security Group" = rimd,
+                  tabledata User = rimd,
+                  tabledata "User Property" = rimd;
 
     var
         AzureAdGraph: Codeunit "Azure AD Graph";
@@ -36,6 +36,7 @@ codeunit 9871 "Security Group Impl."
         EntraTxt: Label 'Microsoft Entra', Locked = true;
         SecurityGroupAddedLbl: Label 'A security group with ID %1 has been added. Automatically created user with security ID: %2.', Locked = true;
         RemovingOrphanedGroupsTxt: Label 'Removing %1 orphaned security groups.', Locked = true;
+        CouldNotRemoveGroupErr: Label 'Could not delete an orphaned security group.', Locked = true;
         NotificationIdLbl: Label 'e78ecb57-f560-4788-b9c7-e5a477467d65', Locked = true;
 
     procedure ValidateGroupId(GroupId: Text)
@@ -49,6 +50,8 @@ codeunit 9871 "Security Group Impl."
     procedure Create(GroupCode: Code[20]; GroupId: Text)
     var
         SecurityGroup: Record "Security Group";
+        [SecurityFiltering(SecurityFilter::Ignored)]
+        SecurityGroup2: Record "Security Group";
         SecurityGroupUser: Record User;
         FeatureTelemetry: Codeunit "Feature Telemetry";
         NavUserAccountHelper: DotNet NavUserAccountHelper;
@@ -57,7 +60,7 @@ codeunit 9871 "Security Group Impl."
     begin
         // CreateUserFromAAdGroupObjectId will commit the changes to the User table, so we need to
         // make sure there will not be a permission error when inserting a security group record.
-        if not SecurityGroup.WritePermission() then
+        if not SecurityGroup2.WritePermission() then
             Error(NoPermissionsErr);
 
         if SecurityGroup.Get(GroupCode) then
@@ -171,7 +174,7 @@ codeunit 9871 "Security Group Impl."
     procedure Export(SecurityGroupCodes: List of [Code[20]]; Destination: OutStream)
     var
         SecurityGroup: Record "Security Group";
-        ExportImportSecurityGroups: XMLport "Export/Import Security Groups";
+        ExportImportSecurityGroups: XmlPort "Export/Import Security Groups";
         SecurityGroupFilterTextBuilder: TextBuilder;
         GroupCode: Code[20];
     begin
@@ -188,7 +191,7 @@ codeunit 9871 "Security Group Impl."
 
     procedure Import(Source: InStream)
     var
-        ExportImportSecurityGroups: XMLport "Export/Import Security Groups";
+        ExportImportSecurityGroups: XmlPort "Export/Import Security Groups";
     begin
         ExportImportSecurityGroups.SetSource(Source);
         ExportImportSecurityGroups.Import();
@@ -198,6 +201,7 @@ codeunit 9871 "Security Group Impl."
     var
         User: Record User;
         UserProperty: Record "User Property";
+        [SecurityFiltering(SecurityFilter::Ignored)]
         DummySecurityGroup: Record "Security Group";
         LocalSecurityGroupBuffer: Record "Security Group Buffer";
         EntraGroupId: Text;
@@ -241,7 +245,7 @@ codeunit 9871 "Security Group Impl."
         if SecurityGroupBuffer.FindFirst() then; // reset to the first record
     end;
 
-    procedure GetGroups(var SecurityGroupBuffer: Record "Security Group Buffer")
+    procedure GetGroups(var SecurityGroupBuffer: Record "Security Group Buffer"; FetchGroupNames: Boolean)
     var
         SecurityGroup: Record "Security Group";
         LocalSecurityGroupBuffer: Record "Security Group Buffer";
@@ -264,8 +268,10 @@ codeunit 9871 "Security Group Impl."
                     SecurityGroupBuffer."Group ID" := SecurityGroup."Windows Group ID"
                 else
                     SecurityGroupBuffer."Group ID" := SecurityGroup."AAD Group ID";
-                if GetName(SecurityGroup.Code, SecurityGroupBuffer."Group Name") then
-                    SecurityGroupBuffer."Retrieved Successfully" := true;
+
+                if FetchGroupNames then
+                    if GetName(SecurityGroup.Code, SecurityGroupBuffer."Group Name") then
+                        SecurityGroupBuffer."Retrieved Successfully" := true;
                 SecurityGroupBuffer.Insert();
             until SecurityGroup.Next() = 0;
 
@@ -362,6 +368,31 @@ codeunit 9871 "Security Group Impl."
         end;
     end;
 
+    procedure GetCode(GroupId: Text[250]; var GroupCode: Code[20]): Boolean
+    var
+        User: Record User;
+        UserProperty: Record "User Property";
+        SecurityGroup: Record "Security Group";
+    begin
+        if IsWindowsAuthentication() then begin
+            User.SetRange("Windows Security ID", GroupId);
+            if not User.FindFirst() then
+                exit(false);
+            SecurityGroup.SetRange("Group User SID", User."User Security ID");
+        end else begin
+            UserProperty.SetRange("Authentication Object ID", GroupId);
+            if not UserProperty.FindFirst() then
+                exit(false);
+            SecurityGroup.SetRange("Group User SID", UserProperty."User Security ID");
+        end;
+
+        if not SecurityGroup.FindFirst() then
+            exit(false);
+
+        GroupCode := SecurityGroup.Code;
+        exit(true);
+    end;
+
     procedure GetIdByName(GroupName: Text): Text
     var
         GroupId: Text;
@@ -388,10 +419,10 @@ codeunit 9871 "Security Group Impl."
     local procedure TryGetEntraGroupMembers(SecurityGroupCode: Code[20]; EntraGroupId: Text; var SecurityGroupMemberBuffer: Record "Security Group Member Buffer")
     var
         UserProperty: Record "User Property";
-        UserIdsPage: Dotnet UserIdsPage;
+        UserIdsPage: DotNet UserIdsPage;
         UserEntraObjectId: Text;
     begin
-        AzureADGraph.GetMemberIdsPageForGroupId(EntraGroupId, 500, UserIdsPage);
+        AzureAdGraph.GetMemberIdsPageForGroupId(EntraGroupId, 500, UserIdsPage);
 
         if IsNull(UserIdsPage) then
             exit;
@@ -463,7 +494,7 @@ codeunit 9871 "Security Group Impl."
         if AreAllEntraGroupsFetched then
             exit;
 
-        EntraGroups := AzureADGraph.GetGroups();
+        EntraGroups := AzureAdGraph.GetGroups();
         AreAllEntraGroupsFetched := true;
     end;
 
@@ -560,9 +591,6 @@ codeunit 9871 "Security Group Impl."
         OrphanedGroupUserSecurityIds: List of [Guid];
         OrphanedGroupUserSecurityId: Guid;
     begin
-        if not GroupUser.WritePermission() then
-            exit;
-
         GroupUser.SetRange("License Type", GroupUser."License Type"::"AAD Group");
         if GroupUser.FindSet() then
             repeat
@@ -577,7 +605,8 @@ codeunit 9871 "Security Group Impl."
         Session.LogMessage('0000LI8', StrSubstNo(RemovingOrphanedGroupsTxt, OrphanedGroupUserSecurityIds.Count()), Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', SecurityGroupsTok);
         foreach OrphanedGroupUserSecurityId in OrphanedGroupUserSecurityIds do
             if GroupUser.Get(OrphanedGroupUserSecurityId) then
-                GroupUser.Delete();
+                if not GroupUser.Delete(true) then
+                    Session.LogMessage('0000M5L', CouldNotRemoveGroupErr, Verbosity::Error, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', SecurityGroupsTok);
     end;
 
     [InternalEvent(false)]

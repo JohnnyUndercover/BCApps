@@ -32,6 +32,7 @@ codeunit 1991 "Guided Experience Impl."
         RunSetupAgainQst: Label 'You have already completed the %1 assisted setup guide. Do you want to run it again?', Comment = '%1 = Assisted Setup Name';
         CodeFormatLbl: Label '%1_%2_%3_%4_%5', Locked = true;
         GuidedExperienceItemInsertedLbl: Label 'Guided Experience Item inserted.', Locked = true;
+        GuidedExperienceItemModifiedLbl: Label 'Guided Experience Item modified.', Locked = true;
         GuidedExperienceItemDeletedLbl: Label 'Guided Experience Item deleted.', Locked = true;
         TitleDimensionLbl: Label '%1ItemTitle', Locked = true;
         ShortTitleDimensionLbl: Label '%1ItemShortTitle', Locked = true;
@@ -54,6 +55,7 @@ codeunit 1991 "Guided Experience Impl."
     procedure Insert(Title: Text[2048]; ShortTitle: Text[50]; Description: Text[1024]; ExpectedDuration: Integer; ExtensionId: Guid; GuidedExperienceType: Enum "Guided Experience Type"; ObjectTypeToRun: ObjectType; ObjectIDToRun: Integer; Link: Text[250]; AssistedSetupGroup: Enum "Assisted Setup Group"; VideoUrl: Text[250]; VideoCategory: Enum "Video Category"; HelpUrl: Text[250]; ManualSetupCategory: Enum "Manual Setup Category"; Keywords: Text[250]; SpotlighTourType: Enum "Spotlight Tour Type"; SpotlightTourTexts: Dictionary of [Enum "Spotlight Tour Text", Text]; CheckObjectValidity: Boolean; IsPrimarySetup: Boolean)
     var
         PrevGuidedExperienceItem: Record "Guided Experience Item";
+        [SecurityFiltering(SecurityFilter::Ignored)]
         GuidedExperienceItem: Record "Guided Experience Item";
         PrimaryGuidedExperienceItem: Record "Primary Guided Experience Item";
         ChecklistImplementation: Codeunit "Checklist Implementation";
@@ -87,7 +89,7 @@ codeunit 1991 "Guided Experience Impl."
         if Version <> 0 then
             ChecklistImplementation.UpdateVersionForSkippedChecklistItems(Code, Version);
 
-        InsertGuidedExperienceItem(GuidedExperienceItem, Code, Version, Title, ShortTitle, Description, ExpectedDuration, ExtensionId,
+        InsertGuidedExperienceItem(GuidedExperienceItem, Code, Version, PrevGuidedExperienceItem.Version, Title, ShortTitle, Description, ExpectedDuration, ExtensionId,
             PrevGuidedExperienceItem.Completed, GuidedExperienceType, GuidedExperienceObjectType, ObjectIDToRun, Link, AssistedSetupGroup,
             VideoUrl, VideoCategory, HelpUrl, ManualSetupCategory, Keywords, SpotlighTourType);
 
@@ -99,8 +101,6 @@ codeunit 1991 "Guided Experience Impl."
         if VideoUrl <> '' then
             Video.Register(GuidedExperienceItem."Extension ID", CopyStr(GuidedExperienceItem.Title, 1, 250), VideoUrl, VideoCategory,
                 Database::"Guided Experience Item", GuidedExperienceItem.SystemId);
-
-        LogMessageOnDatabaseEvent(GuidedExperienceItem, '0000EIM', GuidedExperienceItemInsertedLbl);
 
         // Set the setup as primary
         if IsPrimarySetup and (GuidedExperienceType in [GuidedExperienceType::"Assisted Setup", GuidedExperienceType::"Manual Setup"]) then begin
@@ -298,6 +298,7 @@ codeunit 1991 "Guided Experience Impl."
 
     procedure CompleteAssistedSetup(ObjectType: ObjectType; ObjectID: Integer)
     var
+        [SecurityFiltering(SecurityFilter::Ignored)]
         GuidedExperienceItem: Record "Guided Experience Item";
         GuidedExperienceObjectType: Enum "Guided Experience Object Type";
     begin
@@ -315,6 +316,7 @@ codeunit 1991 "Guided Experience Impl."
 
     procedure ResetAssistedSetup(ObjectType: ObjectType; ObjectID: Integer)
     var
+        [SecurityFiltering(SecurityFilter::Ignored)]
         GuidedExperienceItem: Record "Guided Experience Item";
         GuidedExperienceObjectType: Enum "Guided Experience Object Type";
     begin
@@ -370,6 +372,7 @@ codeunit 1991 "Guided Experience Impl."
 
     procedure Remove(GuidedExperienceType: Enum "Guided Experience Type"; ObjectType: ObjectType; ObjectID: Integer)
     var
+        [SecurityFiltering(SecurityFilter::Ignored)]
         GuidedExperienceItem: Record "Guided Experience Item";
         GuidedExperienceObjectType: Enum "Guided Experience Object Type";
         SpotlightTourType: Enum "Spotlight Tour Type";
@@ -386,6 +389,7 @@ codeunit 1991 "Guided Experience Impl."
 
     procedure Remove(GuidedExperienceType: Enum "Guided Experience Type"; ObjectType: ObjectType; ObjectID: Integer; SpotlightTourType: Enum "Spotlight Tour Type")
     var
+        [SecurityFiltering(SecurityFilter::Ignored)]
         GuidedExperienceItem: Record "Guided Experience Item";
         GuidedExperienceObjectType: Enum "Guided Experience Object Type";
     begin
@@ -400,6 +404,7 @@ codeunit 1991 "Guided Experience Impl."
 
     procedure Remove(GuidedExperienceType: Enum "Guided Experience Type"; Link: Text[250])
     var
+        [SecurityFiltering(SecurityFilter::Ignored)]
         GuidedExperienceItem: Record "Guided Experience Item";
     begin
         if not GuidedExperienceItem.WritePermission() then
@@ -426,7 +431,9 @@ codeunit 1991 "Guided Experience Impl."
 
     procedure IsAssistedSetupSetupRecord(GuidedExperienceItem: Record "Guided Experience Item"): Boolean
     begin
-        exit(GuidedExperienceItem."Object ID to Run" > 0);
+        if not (GuidedExperienceItem."Object ID to Run" > 0) then
+            exit(false);
+        exit(IsObjectToRunValid(GuidedExperienceItem."Object Type to Run", GuidedExperienceItem."Object ID to Run"));
     end;
 
     procedure GetTranslationForField(GuidedExperienceItem: Record "Guided Experience Item"; FieldNo: Integer): Text
@@ -463,28 +470,28 @@ codeunit 1991 "Guided Experience Impl."
         exit(false);
     end;
 
-    procedure GetContentForAllSetups(var GuidedExperienceItemTemp: Record "Guided Experience Item" temporary)
+    procedure GetContentForAllSetups(var TempGuidedExperienceItem: Record "Guided Experience Item" temporary)
     var
         GuidedExperienceItem: Record "Guided Experience Item";
     begin
-        GuidedExperienceItem.CopyFilters(GuidedExperienceItemTemp);
-        GuidedExperienceItemTemp.Reset();
+        GuidedExperienceItem.CopyFilters(TempGuidedExperienceItem);
+        TempGuidedExperienceItem.Reset();
         GuidedExperienceItem.SetCurrentKey("Guided Experience Type", "Object Type to Run", "Object ID to Run", "Manual Setup Category", Link, Version);
         GuidedExperienceItem.SetRange("Guided Experience Type", GuidedExperienceItem."Guided Experience Type"::"Assisted Setup");
         GuidedExperienceItem.SetAscending(Version, false);
 
         if GuidedExperienceItem.FindSet() then
-            InsertGuidedExperienceItemsInTempVar(GuidedExperienceItem, GuidedExperienceItemTemp);
+            InsertGuidedExperienceItemsInTempVar(GuidedExperienceItem, TempGuidedExperienceItem);
 
         GuidedExperienceItem.SetRange("Guided Experience Type", GuidedExperienceItem."Guided Experience Type"::"Manual Setup");
         GuidedExperienceItem.SetAscending(Version, false);
 
         if GuidedExperienceItem.FindSet() then
-            InsertGuidedExperienceItemsInTempVar(GuidedExperienceItem, GuidedExperienceItemTemp);
-        GuidedExperienceItemTemp.Reset();
+            InsertGuidedExperienceItemsInTempVar(GuidedExperienceItem, TempGuidedExperienceItem);
+        TempGuidedExperienceItem.Reset();
     end;
 
-    procedure GetContentForAssistedSetup(var GuidedExperienceItemTemp: Record "Guided Experience Item" temporary)
+    procedure GetContentForAssistedSetup(var TempGuidedExperienceItem: Record "Guided Experience Item" temporary)
     var
         GuidedExperienceItem: Record "Guided Experience Item";
         GroupValue: Enum "Assisted Setup Group";
@@ -502,21 +509,55 @@ codeunit 1991 "Guided Experience Impl."
 
             if GuidedExperienceItem.FindSet() then begin
                 // this part is necessary to include the assisted setup group as a header on the page
-                GuidedExperienceItemTemp.Init();
-                GuidedExperienceItemTemp.Code := Format(GroupId);
-                GuidedExperienceItemTemp."Object ID to Run" := GroupId;
-                GuidedExperienceItemTemp.Title := Format(GroupValue);
-                GuidedExperienceItemTemp."Assisted Setup Group" := GroupValue;
-                GuidedExperienceItemTemp.Insert();
+                TempGuidedExperienceItem.Init();
+                TempGuidedExperienceItem.Code := Format(GroupId);
+                TempGuidedExperienceItem."Object ID to Run" := GroupId;
+                TempGuidedExperienceItem.Title := Format(GroupValue);
+                TempGuidedExperienceItem."Assisted Setup Group" := GroupValue;
+                TempGuidedExperienceItem.Insert();
 
                 GroupId -= 1;
 
-                InsertGuidedExperienceItemsInTempVar(GuidedExperienceItem, GuidedExperienceItemTemp);
+                InsertGuidedExperienceItemsInTempVar(GuidedExperienceItem, TempGuidedExperienceItem);
             end;
         end;
     end;
 
-    procedure GetContentForSetupPage(var GuidedExperienceItemTemp: Record "Guided Experience Item" temporary; GuidedExperienceType: Enum "Guided Experience Type")
+    procedure GetContentForManualSetup(var TempGuidedExperienceItem: Record "Guided Experience Item" temporary)
+    var
+        GuidedExperienceItem: Record "Guided Experience Item";
+        GroupValue: Enum "Manual Setup Category";
+        GroupId: Integer;
+        i: Integer;
+    begin
+        GuidedExperienceItem.ReadIsolation := GuidedExperienceItem.ReadIsolation::ReadUncommitted;
+        GuidedExperienceItem.SetCurrentKey("Guided Experience Type", "Object Type to Run", "Object ID to Run", "Manual Setup Category", Link, Version);
+        GuidedExperienceItem.SetRange("Guided Experience Type", GuidedExperienceItem."Guided Experience Type"::"Manual Setup");
+        GuidedExperienceItem.SetAscending(Version, false);
+
+        GroupId := 0;
+        foreach i in "Manual Setup Category".Ordinals() do begin
+            GroupValue := "Manual Setup Category".FromInteger(i);
+            GuidedExperienceItem.SetRange("Manual Setup Category", GroupValue);
+
+            if GuidedExperienceItem.FindSet() then begin
+                // this part is necessary to include the Manual Setup Category as a header on the page
+                Clear(TempGuidedExperienceItem);
+                TempGuidedExperienceItem.Code := Format(GroupId);
+                TempGuidedExperienceItem."Object ID to Run" := GroupId;
+                TempGuidedExperienceItem.Title := Format(GroupValue);
+                TempGuidedExperienceItem."Short Title" := Format(GroupValue);
+                TempGuidedExperienceItem."Manual Setup Category" := GroupValue;
+                TempGuidedExperienceItem.Insert();
+
+                GroupId -= 1;
+
+                InsertGuidedExperienceItemsInTempVar(GuidedExperienceItem, TempGuidedExperienceItem);
+            end;
+        end;
+    end;
+
+    procedure GetContentForSetupPage(var TempGuidedExperienceItem: Record "Guided Experience Item" temporary; GuidedExperienceType: Enum "Guided Experience Type")
     var
         GuidedExperienceItem: Record "Guided Experience Item";
     begin
@@ -525,10 +566,10 @@ codeunit 1991 "Guided Experience Impl."
 
         GuidedExperienceItem.SetRange("Guided Experience Type", GuidedExperienceType);
         if GuidedExperienceItem.FindSet() then
-            InsertGuidedExperienceItemsInTempVar(GuidedExperienceItem, GuidedExperienceItemTemp);
+            InsertGuidedExperienceItemsInTempVar(GuidedExperienceItem, TempGuidedExperienceItem);
     end;
 
-    local procedure InsertGuidedExperienceItemsInTempVar(var GuidedExperienceItem: Record "Guided Experience Item"; var GuidedExperienceItemTemp: Record "Guided Experience Item" temporary)
+    local procedure InsertGuidedExperienceItemsInTempVar(var GuidedExperienceItem: Record "Guided Experience Item"; var TempGuidedExperienceItem: Record "Guided Experience Item" temporary)
     var
         PrevGuidedExperienceItem: Record "Guided Experience Item";
         InsertItem: Boolean;
@@ -545,7 +586,7 @@ codeunit 1991 "Guided Experience Impl."
             if (GuidedExperienceItem."Guided Experience Type" = Enum::"Guided Experience Type"::Video) and
                 (GuidedExperienceItem."Guided Experience Type" = PrevGuidedExperienceItem."Guided Experience Type")
             then
-                if (GuidedExperienceItem."Title" <> PrevGuidedExperienceItem."Title")
+                if (GuidedExperienceItem.Title <> PrevGuidedExperienceItem.Title)
                     or (GuidedExperienceItem.Description <> PrevGuidedExperienceItem.Description)
                     or (GuidedExperienceItem."Video Url" <> PrevGuidedExperienceItem."Video Url")
                     or (GuidedExperienceItem."Video Category" <> PrevGuidedExperienceItem."Video Category")
@@ -558,7 +599,7 @@ codeunit 1991 "Guided Experience Impl."
                 InsertItem := true;
 
             if InsertItem then begin
-                InsertGuidedExperienceItemIfValid(GuidedExperienceItemTemp, GuidedExperienceItem);
+                InsertGuidedExperienceItemIfValid(TempGuidedExperienceItem, GuidedExperienceItem);
                 InsertItem := false;
             end;
 
@@ -581,7 +622,7 @@ codeunit 1991 "Guided Experience Impl."
         end;
     end;
 
-    local procedure GetCode(Type: Enum "Guided Experience Type"; ObjectType: Enum "Guided Experience Object Type"; ObjectID: Integer; Link: Text[250]; VideoUrl: Text[250]; SpotlightTourType: Enum "Spotlight Tour Type"): Code[300]
+    internal procedure GetCode(Type: Enum "Guided Experience Type"; ObjectType: Enum "Guided Experience Object Type"; ObjectID: Integer; Link: Text[250]; VideoUrl: Text[250]; SpotlightTourType: Enum "Spotlight Tour Type"): Code[300]
     var
         Url: Text[250];
     begin
@@ -599,9 +640,7 @@ codeunit 1991 "Guided Experience Impl."
         if not GuidedExperienceItem.FindLast() then
             exit(0);
 
-        if HasTheRecordChanged(GuidedExperienceItem, Title, ShortTitle, Description, ExpectedDuration, ExtensionId, GuidedExperienceType, ObjectTypeToRun,
-            ObjectIDToRun, Link, AssistedSetupGroup, VideoUrl, VideoCategory, HelpUrl, ManualSetupCategory, Keywords, SpotlightTourType, SpotlightTourTexts, IsPrimary)
-        then
+        if HasTheRecordChanged(GuidedExperienceItem, Title, ShortTitle, Description, ExpectedDuration, ExtensionId, GuidedExperienceType, ObjectTypeToRun, ObjectIDToRun, Link, AssistedSetupGroup, VideoUrl, VideoCategory, HelpUrl, ManualSetupCategory, Keywords, SpotlightTourType, SpotlightTourTexts, IsPrimary) then
             exit(GuidedExperienceItem.Version + 1);
 
         exit(-1);
@@ -720,15 +759,25 @@ codeunit 1991 "Guided Experience Impl."
         exit(false);
     end;
 
-    local procedure InsertGuidedExperienceItem(var GuidedExperienceItem: Record "Guided Experience Item"; Code: Code[300]; Version: Integer; Title: Text[2048]; ShortTitle: Text[50]; Description: Text[1024]; ExpectedDuration: Integer; ExtensionId: Guid; Completed: Boolean; GuidedExperienceType: Enum "Guided Experience Type"; ObjectTypeToRun: Enum "Guided Experience Object Type"; ObjectIDToRun: Integer; Link: Text[250]; AssistedSetupGroup: Enum "Assisted Setup Group"; VideoUrl: Text[250]; VideoCategory: Enum "Video Category"; HelpUrl: Text[250]; ManualSetupCategory: Enum "Manual Setup Category"; Keywords: Text[250]; SpotlightTourType: Enum "Spotlight Tour Type")
+    local procedure InsertGuidedExperienceItem(var GuidedExperienceItem: Record "Guided Experience Item"; Code: Code[300]; Version: Integer; PreviousVersion: Integer; Title: Text[2048]; ShortTitle: Text[50]; Description: Text[1024]; ExpectedDuration: Integer; ExtensionId: Guid; Completed: Boolean; GuidedExperienceType: Enum "Guided Experience Type"; ObjectTypeToRun: Enum "Guided Experience Object Type"; ObjectIDToRun: Integer; Link: Text[250]; AssistedSetupGroup: Enum "Assisted Setup Group"; VideoUrl: Text[250]; VideoCategory: Enum "Video Category"; HelpUrl: Text[250]; ManualSetupCategory: Enum "Manual Setup Category"; Keywords: Text[250]; SpotlightTourType: Enum "Spotlight Tour Type")
     var
         IconInStream: InStream;
+        Exist: Boolean;
     begin
         if ExpectedDuration > 30000 then
             Error(ExpectedDurationOverflowErr, ExpectedDuration);
 
-        GuidedExperienceItem.Code := Code;
-        GuidedExperienceItem.Version := Version;
+        if GuidedExperienceItem.Get(Code, PreviousVersion) and (PreviousVersion > 0) then begin
+            // PreviousVersion cannot be 0 otherwise Rename will fail
+            Exist := true;
+            GuidedExperienceItem.Rename(Code, Version);
+        end else begin
+            // Will need to treat the Primary Key a bit differently
+            Exist := false;
+            GuidedExperienceItem.Code := Code;
+            GuidedExperienceItem.Version := Version;
+        end;
+
         GuidedExperienceItem.Title := Title;
         GuidedExperienceItem."Short Title" := ShortTitle;
         GuidedExperienceItem.Description := Description;
@@ -750,7 +799,13 @@ codeunit 1991 "Guided Experience Impl."
         if GetIconInStream(IconInStream, ExtensionId) then
             GuidedExperienceItem.Icon.ImportStream(IconInStream, ExtensionId);
 
-        GuidedExperienceItem.Insert();
+        if Exist then begin
+            GuidedExperienceItem.Modify();
+            LogMessageOnDatabaseEvent(GuidedExperienceItem, '0000EIZ', GuidedExperienceItemModifiedLbl);
+        end else begin
+            GuidedExperienceItem.Insert();
+            LogMessageOnDatabaseEvent(GuidedExperienceItem, '0000EIM', GuidedExperienceItemInsertedLbl);
+        end;
     end;
 
     local procedure InsertSpotlightTourTexts(Code: Code[300]; Version: Integer; SpotlightTourTextsDictionary: Dictionary of [Enum "Spotlight Tour Text", Text])
@@ -765,8 +820,8 @@ codeunit 1991 "Guided Experience Impl."
             SpotlightTourText."Guided Experience Item Code" := Code;
             SpotlightTourText."Guided Experience Item Version" := Version;
             SpotlightTourText."Spotlight Tour Step" := SpotlightTourKey;
-            SpotlightTourText."Spotlight Tour Text" := CopyStr(SpotlightTourTextsDictionary.Get(SpotlightTourKey),
-                1, MaxStrLen(SpotlightTourText."Spotlight Tour Text"));
+            SpotlightTourText."Spotlight Tour Text" := CopyStr(SpotlightTourTextsDictionary.Get(SpotlightTourKey), 1, MaxStrLen(SpotlightTourText."Spotlight Tour Text"));
+
             if SpotlightTourText.Insert() then;
         end;
     end;
@@ -782,8 +837,7 @@ codeunit 1991 "Guided Experience Impl."
 
         foreach SpotlightTourKey in SpotlightTourKeys do
             if SpotlightTourText.Get(Code, Version, SpotlightTourKey) then begin
-                SpotlightTourTextValue := CopyStr(SpotlightTourTextsDictionary.Get(SpotlightTourKey),
-                    1, MaxStrLen(SpotlightTourText."Spotlight Tour Text"));
+                SpotlightTourTextValue := CopyStr(SpotlightTourTextsDictionary.Get(SpotlightTourKey), 1, MaxStrLen(SpotlightTourText."Spotlight Tour Text"));
 
                 InsertTranslation(SpotlightTourText, SpotlightTourTextValue);
 
@@ -835,7 +889,7 @@ codeunit 1991 "Guided Experience Impl."
         InsertTranslations(GuidedExperienceItem, GuidedExperienceItem.Title, GuidedExperienceItem."Short Title",
             GuidedExperienceItem.Description, GuidedExperienceItem.Keywords);
 
-        // if this isn't the first version of the record, copy all the existing translations for the 
+        // if this isn't the first version of the record, copy all the existing translations for the
         // record if the fields haven't changed and if the translations don't already exist
         if GuidedExperienceItem.Version > 0 then begin
             if PrevVersionGuidedExperienceItem.Title = GuidedExperienceItem.Title then
@@ -896,7 +950,7 @@ codeunit 1991 "Guided Experience Impl."
             GuidedExperienceItem.ModifyAll(Completed, true);
     end;
 
-    local procedure Reset(GuidedExperienceItem: Record "Guided Experience Item")
+    local procedure Reset(var GuidedExperienceItem: Record "Guided Experience Item")
     begin
         if GuidedExperienceItem.FindSet() then
             repeat
@@ -990,7 +1044,7 @@ codeunit 1991 "Guided Experience Impl."
             SpotlightTourText.DeleteAll();
     end;
 
-    local procedure InsertGuidedExperienceItemIfValid(var GuidedExperienceItemTemp: Record "Guided Experience Item" temporary; GuidedExperienceItem: Record "Guided Experience Item")
+    local procedure InsertGuidedExperienceItemIfValid(var TempGuidedExperienceItem: Record "Guided Experience Item" temporary; GuidedExperienceItem: Record "Guided Experience Item")
     begin
         if not (GuidedExperienceItem."Guided Experience Type" in
             ["Guided Experience Type"::Learn, "Guided Experience Type"::Video])
@@ -1001,33 +1055,33 @@ codeunit 1991 "Guided Experience Impl."
             then
                 exit;
 
-        GuidedExperienceItemTemp.TransferFields(GuidedExperienceItem);
-        GuidedExperienceItemTemp.SystemId := GuidedExperienceItem.SystemId;
+        TempGuidedExperienceItem.TransferFields(GuidedExperienceItem);
+        TempGuidedExperienceItem.SystemId := GuidedExperienceItem.SystemId;
 
-        CopyTranslationsToGuidedExperienceItem(GuidedExperienceItemTemp, GuidedExperienceItem);
+        CopyTranslationsToGuidedExperienceItem(TempGuidedExperienceItem, GuidedExperienceItem);
 
-        GuidedExperienceItemTemp.Insert();
+        TempGuidedExperienceItem.Insert();
     end;
 
-    local procedure CopyTranslationsToGuidedExperienceItem(var GuidedExperienceItemTemp: Record "Guided Experience Item"; GuidedExperienceItem: Record "Guided Experience Item")
+    local procedure CopyTranslationsToGuidedExperienceItem(var TempGuidedExperienceItem: Record "Guided Experience Item"; GuidedExperienceItem: Record "Guided Experience Item")
     var
         Translation: Text;
     begin
         Translation := GetTranslationForField(GuidedExperienceItem, GuidedExperienceItem.FieldNo(Title));
         if Translation <> '' then
-            GuidedExperienceItemTemp.Title := CopyStr(Translation, 1, MaxStrLen(GuidedExperienceItemTemp.Title));
+            TempGuidedExperienceItem.Title := CopyStr(Translation, 1, MaxStrLen(TempGuidedExperienceItem.Title));
 
         Translation := GetTranslationForField(GuidedExperienceItem, GuidedExperienceItem.FieldNo("Short Title"));
         if Translation <> '' then
-            GuidedExperienceItemTemp."Short Title" := CopyStr(Translation, 1, MaxStrLen(GuidedExperienceItemTemp."Short Title"));
+            TempGuidedExperienceItem."Short Title" := CopyStr(Translation, 1, MaxStrLen(TempGuidedExperienceItem."Short Title"));
 
         Translation := GetTranslationForField(GuidedExperienceItem, GuidedExperienceItem.FieldNo(Description));
         if Translation <> '' then
-            GuidedExperienceItemTemp.Description := CopyStr(Translation, 1, MaxStrLen(GuidedExperienceItemTemp.Description));
+            TempGuidedExperienceItem.Description := CopyStr(Translation, 1, MaxStrLen(TempGuidedExperienceItem.Description));
 
         Translation := GetTranslationForField(GuidedExperienceItem, GuidedExperienceItem.FieldNo(Keywords));
         if Translation <> '' then
-            GuidedExperienceItemTemp.Keywords := CopyStr(Translation, 1, MaxStrLen(GuidedExperienceItemTemp.Keywords));
+            TempGuidedExperienceItem.Keywords := CopyStr(Translation, 1, MaxStrLen(TempGuidedExperienceItem.Keywords));
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::Video, OnRegisterVideo, '', false, false)]
@@ -1086,8 +1140,8 @@ codeunit 1991 "Guided Experience Impl."
     var
         PublishedApplication: Record "Published Application";
         Media: Record Media;
-        LogoInStream: Instream;
-        LogoOutStream: Outstream;
+        LogoInStream: InStream;
+        LogoOutStream: OutStream;
     begin
         PublishedApplication.SetRange(ID, AppId);
         PublishedApplication.SetRange("Tenant Visible", true);
@@ -1101,7 +1155,7 @@ codeunit 1991 "Guided Experience Impl."
             Media.CalcFields(Content);
             Media.Content.CreateInStream(LogoInStream);
 
-            LogoTempBlob.CreateOutstream(LogoOutStream);
+            LogoTempBlob.CreateOutStream(LogoOutStream);
             CopyStream(LogoOutStream, LogoInStream);
         end;
     end;
@@ -1192,45 +1246,5 @@ codeunit 1991 "Guided Experience Impl."
 
         Telemetry.LogMessage(Tag, Message, Verbosity::Normal, DataClassification::OrganizationIdentifiableInformation,
             TelemetryScope::ExtensionPublisher, Dimensions);
-    end;
-
-    procedure CleanupOldGuidedExperienceItems(OnlyFirstParty: Boolean; Threshold: Integer)
-    var
-        GuidedExperienceItem: Record "Guided Experience Item";
-        GuidedExperienceItem2: Record "Guided Experience Item";
-        PublishedApplication: Record "Published Application";
-        FirstPartyPublisherFilterString: Text;
-        ItemsToCleanUp: List of [Code[300]];
-        ItemCode: Code[300];
-    begin
-        if OnlyFirstParty then begin
-            PublishedApplication.SetRange(Publisher, 'Microsoft');
-            FirstPartyPublisherFilterString := '';
-
-            if PublishedApplication.FindSet() then
-                repeat
-                    if FirstPartyPublisherFilterString = '' then
-                        FirstPartyPublisherFilterString := PublishedApplication.ID
-                    else
-                        FirstPartyPublisherFilterString += '|' + PublishedApplication.ID;
-                until PublishedApplication.Next() = 0;
-
-            GuidedExperienceItem.SetFilter("Extension ID", FirstPartyPublisherFilterString);
-        end;
-
-        if GuidedExperienceItem.FindSet() then
-            repeat
-                GuidedExperienceItem2.SetRange(Code, GuidedExperienceItem.Code);
-
-                if GuidedExperienceItem2.Count() > Threshold then
-                    if not ItemsToCleanUp.Contains(GuidedExperienceItem.Code) then
-                        ItemsToCleanUp.Add(GuidedExperienceItem.Code);
-            until GuidedExperienceItem.Next() = 0;
-
-        foreach ItemCode in ItemsToCleanUp do begin
-            GuidedExperienceItem.SetRange(Code, ItemCode);
-            GuidedExperienceItem.SetRange(Version, 0, GuidedExperienceItem.Count() - 2);
-            GuidedExperienceItem.DeleteAll(false);
-        end;
     end;
 }

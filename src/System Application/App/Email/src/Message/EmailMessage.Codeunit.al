@@ -61,6 +61,26 @@ codeunit 8904 "Email Message"
         EmailMessageImpl.Create(ToRecipients, Subject, Body, HtmlFormatted, CCRecipients, BCCRecipients);
     end;
 
+    procedure CreateReply(ToRecipients: Text; Body: Text; HtmlFormatted: Boolean; ExternalId: Text)
+    begin
+        EmailMessageImpl.CreateReply(ToRecipients, Body, HtmlFormatted, ExternalId);
+    end;
+
+    procedure CreateReply(ToRecipients: List of [Text]; Body: Text; HtmlFormatted: Boolean; ExternalId: Text)
+    begin
+        EmailMessageImpl.CreateReply(ToRecipients, Body, HtmlFormatted, ExternalId);
+    end;
+
+    procedure CreateReply(ToRecipients: List of [Text]; Body: Text; HtmlFormatted: Boolean; ExternalId: Text; CCRecipients: List of [Text]; BCCRecipients: List of [Text])
+    begin
+        EmailMessageImpl.CreateReply(ToRecipients, Body, HtmlFormatted, ExternalId, CCRecipients, BCCRecipients);
+    end;
+
+    procedure CreateReplyAll(Body: Text; HtmlFormatted: Boolean; ExternalId: Text)
+    begin
+        EmailMessageImpl.CreateReplyAll(Body, HtmlFormatted, ExternalId);
+    end;
+
     /// <summary>
     /// Gets the email message with the given ID.
     /// </summary>
@@ -69,6 +89,18 @@ codeunit 8904 "Email Message"
     procedure Get(MessageId: Guid): Boolean
     begin
         exit(EmailMessageImpl.Get(MessageId));
+    end;
+
+    /// <summary>
+    /// Deletes messages that does not have a reference from either the email outbox nor sent email.
+    /// This functionality is only needed if email messages have been created without any email outbox or sent email referencing it, otherwise they will be cleaned up automatically.
+    /// </summary>
+    /// <param name="StartMessageId">The email message id to start from. Using empty guid will start from the beginning.</param>
+    /// <param name="MessagesToIterate">Number of email messages to loop over.</param>
+    /// <returns>The next email message id to be checked. Returns empty guid if there are no more messages.</returns>
+    procedure DeleteOrphanedMessages(StartMessageId: Guid; MessagesToIterate: Integer) NextMessageId: Guid
+    begin
+        exit(EmailMessageImpl.DeleteOrphanedMessages(StartMessageId, MessagesToIterate));
     end;
 
     /// <summary>
@@ -96,6 +128,11 @@ codeunit 8904 "Email Message"
     procedure AppendToBody(Value: Text)
     begin
         EmailMessageImpl.AppendToBody(Value);
+    end;
+
+    procedure GetExternalId(): Text[2048]
+    begin
+        exit(EmailMessageImpl.GetExternalId());
     end;
 
     /// <summary>
@@ -148,7 +185,7 @@ codeunit 8904 "Email Message"
     /// </summary>
     /// <param name="RecipientType">Specifies the type of the recipients.</param>
     /// <param name="Recipients">Out parameter filled with the recipients' email addresses.</param>
-    procedure GetRecipients(RecipientType: Enum "Email Recipient Type"; var Recipients: list of [Text])
+    procedure GetRecipients(RecipientType: Enum "Email Recipient Type"; var Recipients: List of [Text])
     begin
         Recipients := EmailMessageImpl.GetRecipients(RecipientType);
     end;
@@ -168,7 +205,7 @@ codeunit 8904 "Email Message"
     /// </summary>
     /// <param name="RecipientType">Specifies the type of the recipients.</param>
     /// <param name="Recipients">Specifies the list of the recipients' email addresses.</param>
-    procedure SetRecipients(RecipientType: Enum "Email Recipient Type"; Recipients: list of [Text])
+    procedure SetRecipients(RecipientType: Enum "Email Recipient Type"; Recipients: List of [Text])
     begin
         EmailMessageImpl.SetRecipients(RecipientType, Recipients);
     end;
@@ -370,14 +407,14 @@ codeunit 8904 "Email Message"
     end;
 
     /// <summary>
-    /// Integration event to provide the stream of data for a given MediaID. If attachment content has been deleted, this event makes it possible to provide 
+    /// Integration event to provide the stream of data for a given MediaID. If attachment content has been deleted, this event makes it possible to provide
     /// the data from elsewhere.
     /// </summary>
     /// <param name="MediaID">Id of the underlying media field that contains the attachment data.</param>
     /// <param name="InStream">Stream to that should pointed to the attachment data.</param>
     /// <param name="Handled">Was the attachment content added to the stream.</param>
     [IntegrationEvent(false, false)]
-    internal procedure OnGetAttachmentContent(MediaID: Guid; var InStream: Instream; var Handled: Boolean)
+    internal procedure OnGetAttachmentContent(MediaID: Guid; var InStream: InStream; var Handled: Boolean)
     begin
     end;
 

@@ -21,7 +21,7 @@ codeunit 9107 "SharePoint Http Content"
         XHttpMethod: Text;
         IfMatch: Text;
 
-    procedure FromFileInStream(var FileInStream: Instream)
+    procedure FromFileInStream(var FileInStream: InStream)
     begin
         HttpContent.WriteFrom(FileInStream);
         ContentLength := GetContentLength(FileInStream);
@@ -65,7 +65,7 @@ codeunit 9107 "SharePoint Http Content"
 
     procedure SetXHttpMethod(XHttpMethodValue: Text)
     begin
-        XHttpMethodValue := XHttpMethodValue;
+        XHttpMethod := XHttpMethodValue;
     end;
 
     procedure GetXHttpMethod(): Text;

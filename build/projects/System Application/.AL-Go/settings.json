@@ -1,12 +1,20 @@
 {
     "projectName": "System Application",
     "appFolders":  [
-        "..\\..\\..\\src\\System Application\\App"
+        "../../../src/System Application/App"
     ],
-    "buildModes": [
-        "Translated"
-    ],
+    "buildModes": [ "Translated" ],
     "doNotRunTests": true,
     "useCompilerFolder": true,
-    "doNotPublishApps": true
+    "doNotPublishApps": true,
+    "ConditionalSettings": [
+        {
+            "branches": [
+                "releases/*.[0-5]"
+            ],
+            "settings": {
+                "buildModes": [ "Translated", "Strict"]
+            }
+        }
+    ]
 }

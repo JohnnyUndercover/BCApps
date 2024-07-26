@@ -21,13 +21,11 @@ dotnet
         type("Microsoft.Dynamics.Nav.Runtime.Debugger.ProfilerSamplingInterval"; "ProfilerSamplingInterval")
         {
         }
-    }
-
-    assembly("Microsoft.Dynamics.Nav.Client.BusinessChart")
-    {
-        type("Microsoft.Dynamics.Nav.Client.BusinessChart.BusinessChartAddIn"; "BusinessChartUserControl")
+        type("Microsoft.Dynamics.Nav.Runtime.Debugger.ALProfilerHelper"; ProfilerHelper)
         {
-            IsControlAddIn = true;
+        }
+        type("Microsoft.Dynamics.Nav.Runtime.Debugger.ALPerformanceProfileSchedulerRecord"; PerformanceProfileSchedulerRecord)
+        {
         }
     }
 }

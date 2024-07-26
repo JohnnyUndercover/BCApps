@@ -35,13 +35,14 @@ codeunit 2500 "Extension Installation Impl"
         ClearExtensionSchemaMsg: Label 'You have selected to delete extension data for the %1 extension and all of its dependents: %2. Continuing uninstall will delete the tables that contain data for the %1 extension and all of its dependents. This action cannot be undone. Do you want to continue?', Comment = '%1=name of app ,%2= all dependent extensions';
         ClearExtensionSchemaOrphanMsg: Label 'You have selected to delete extension data for the %1 extension. Continuing deletion will delete the tables that contain data for the %1 extension and all of its dependents. This action cannot be undone. Do you want to continue?', Comment = '%1=name of app';
         NotSufficientPermissionErr: Label 'You do not have sufficient permissions to manage extensions. Please contact your administrator.';
-        InstallationBestPracticesUrlLbl: Label 'https://go.microsoft.com/fwlink/?linkid=2138922', comment = 'link to the best practices and tips about the installing and publishing a new extension.', Locked = true;
-        DisclaimerUrlLbl: Label 'https://go.microsoft.com/fwlink/?linkid=2193002&clcid=0x409', comment = 'link to the Business Central PTE disclaimer.', Locked = true;
-        PrivacyPolicyUrlLbl: Label 'https://go.microsoft.com/fwlink/?LinkId=521839', comment = 'link to the privacy and cookies docs.', Locked = true;
+        InstallationBestPracticesUrlLbl: Label 'https://go.microsoft.com/fwlink/?linkid=2138922', Comment = 'link to the best practices and tips about the installing and publishing a new extension.', Locked = true;
+        DisclaimerUrlLbl: Label 'https://go.microsoft.com/fwlink/?linkid=2193002&clcid=0x409', Comment = 'link to the Business Central PTE disclaimer.', Locked = true;
+        PrivacyPolicyUrlLbl: Label 'https://go.microsoft.com/fwlink/?LinkId=521839', Comment = 'link to the privacy and cookies docs.', Locked = true;
         ExtensionNotInstalledErr: Label 'The %1 app is not installed.', Comment = '%1 = name of extension';
 
     procedure IsInstalledByPackageId(PackageID: Guid): Boolean
     var
+        [SecurityFiltering(SecurityFilter::Ignored)]
         NAVAppInstalledApp: Record "NAV App Installed App";
     begin
         // Checks whether the user is entitled to make extension changes.
@@ -54,6 +55,7 @@ codeunit 2500 "Extension Installation Impl"
 
     procedure IsInstalledByAppId(AppID: Guid): Boolean
     var
+        [SecurityFiltering(SecurityFilter::Ignored)]
         NAVAppInstalledApp: Record "NAV App Installed App";
     begin
         // Checks whether the user is entitled to make extension changes.
@@ -363,6 +365,45 @@ codeunit 2500 "Extension Installation Impl"
         ExtensionDetails.SetRecord(PublishedApplication);
         ExtensionDetails.Run();
         exit(ExtensionDetails.Editable());
+    end;
+
+    procedure AllowsDebug(ResourceProtectionPolicy: Integer): Boolean
+    begin
+        exit(HasPolicy(ResourceProtectionPolicy, 1));
+    end;
+
+    procedure AllowsDownloadSource(ResourceProtectionPolicy: Integer): Boolean
+    begin
+        exit(HasPolicy(ResourceProtectionPolicy, 2));
+    end;
+
+    procedure AllowsDownloadSourceInSymbols(ResourceProtectionPolicy: Integer): Boolean
+    begin
+        exit(HasPolicy(ResourceProtectionPolicy, 4));
+    end;
+
+    local procedure HasPolicy(ResourceProtectionPolicy: Integer; PolicyToTestFor: Integer): Boolean
+    var
+        Remaining: Integer;
+        Tester: Integer;
+        Result: Integer;
+        NextFlag: Integer;
+
+    begin
+        Result := 0;
+        Remaining := ResourceProtectionPolicy;
+        Tester := PolicyToTestFor;
+        NextFlag := 1;
+        while (Remaining > 0) and (Tester > 0) do begin
+            if ((Remaining mod 2) = 1) and ((Tester mod 2) = 1) then
+                Result += NextFlag;
+
+            Remaining := Remaining div 2;
+            Tester := Tester div 2;
+            NextFlag := NextFlag * 2;
+        end;
+
+        exit(Result = PolicyToTestFor);
     end;
 }
 

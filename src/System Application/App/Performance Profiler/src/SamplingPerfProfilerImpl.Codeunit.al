@@ -16,12 +16,13 @@ codeunit 1925 "Sampling Perf. Profiler Impl."
 
     var
         TempBlob: Codeunit "Temp Blob";
-        SamplingProfiler: Dotnet SamplingProfiler;
+        SamplingProfiler: DotNet SamplingProfiler;
         CpuProfile: DotNet CpuProfile;
         IsRecordingRunning: Boolean;
         IdleTimeTok: Label 'IdleTime', Locked = true;
         NoRecordingErr: Label 'There is no performance profiling data.';
         NotSupportedCpuProfileKindErr: Label 'This type of .alcpuprofile file is not supported. Please upload a sampling-based CPU profile file.';
+        PrivacyNoticeMsg: Label 'The file might contain sensitive data, so be sure to handle it securely and according to privacy requirements. Do you want to continue?';
 
     procedure Start(SamplingInterval: Enum "Sampling Interval")
     var
@@ -72,6 +73,14 @@ codeunit 1925 "Sampling Perf. Profiler Impl."
     procedure SetData(ProfilingResultsInStream: InStream)
     begin
         UpdateCpuProfile(ProfilingResultsInStream);
+    end;
+
+    procedure DownloadData(ProfileFileName: Text; ProfileInStream: InStream)
+    begin
+        if not Confirm(PrivacyNoticeMsg) then
+            exit;
+
+        DownloadFromStream(ProfileInStream, '', '', '', ProfileFileName);
     end;
 
     local procedure UpdateCpuProfile(CpuProfileInStream: InStream)
@@ -155,7 +164,7 @@ codeunit 1925 "Sampling Perf. Profiler Impl."
         CpuProfileNodeArray: DotNet "Array";
         NodeIdToNodeMap: DotNet GenericDictionary2;
         NodeIdToSelfTimeMap: Dictionary of [Integer, BigInteger];
-        // using a dictionary here as there is no "Set" AL type 
+        // using a dictionary here as there is no "Set" AL type
         ChildNodes: Dictionary of [Integer, Boolean];
         ChildNodeId: Integer;
         NodeNumber: Integer;

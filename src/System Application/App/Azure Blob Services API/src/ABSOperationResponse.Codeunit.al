@@ -16,7 +16,7 @@ codeunit 9050 "ABS Operation Response"
 
     /// <summary>
     /// Checks whether the operation was successful.
-    /// </summary>    
+    /// </summary>
     /// <returns>True if the operation was successful; otherwise - false.</returns>
     procedure IsSuccessful(): Boolean
     begin
@@ -52,7 +52,7 @@ codeunit 9050 "ABS Operation Response"
     end;
 
     /// <summary>
-    /// Gets the result of a ABS client operation as text, 
+    /// Gets the result of a ABS client operation as text,
     /// </summary>
     /// <returns>The content of the response.</returns>
     [NonDebuggable]
@@ -63,7 +63,7 @@ codeunit 9050 "ABS Operation Response"
     end;
 
     /// <summary>
-    /// Gets the result of a ABS client operation as stream, 
+    /// Gets the result of a ABS client operation as stream,
     /// </summary>
     /// <returns>The content of the response.</returns>
     [NonDebuggable]
@@ -91,6 +91,24 @@ codeunit 9050 "ABS Operation Response"
         if not Headers.GetValues(HeaderName, Values) then
             exit('');
         exit(Values[1]);
+    end;
+
+    [NonDebuggable]
+    procedure GetMetadataValueFromResponseHeaders(): Dictionary of [Text, Text]
+    var
+        Metadata: Dictionary of [Text, Text];
+        Headers: HttpHeaders;
+        HeaderKeys: List of [Text];
+        HeaderKey: Text;
+        Values: array[100] of Text;
+    begin
+        Headers := HttpResponseMessage.Headers();
+        HeaderKeys := Headers.Keys();
+        foreach HeaderKey in HeaderKeys do
+            if HeaderKey.StartsWith('x-ms-meta-') then
+                if Headers.GetValues(HeaderKey, Values) then
+                    Metadata.Add(DelStr(HeaderKey, 1, 10), Values[1]);
+        exit(Metadata);
     end;
 
     var

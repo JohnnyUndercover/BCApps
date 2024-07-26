@@ -19,8 +19,8 @@ codeunit 1432 "Satisfaction Survey Impl."
     InherentPermissions = X;
     Permissions = tabledata "Net Promoter Score" = rimd,
                   tabledata "Net Promoter Score Setup" = rimd,
-                  tabledata "User Property" = r,
-                  tabledata "User Personalization" = r;
+                  tabledata "User Personalization" = r,
+                  tabledata "User Property" = r;
 
     var
         FinancialsUriSegmentTxt: Label 'financials', Locked = true;
@@ -88,7 +88,7 @@ codeunit 1432 "Satisfaction Survey Impl."
         Commit();
 
         Session.LogMessage('00008MW', NPSPageTelemetryTxt, Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', NpsCategoryTxt);
-        PAGE.RunModal(PAGE::"Satisfaction Survey");
+        Page.RunModal(Page::"Satisfaction Survey");
         Session.LogMessage('00006ZF', NPSPageTelemetryTxt, Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', NpsCategoryTxt);
         exit(true);
     end;
@@ -108,13 +108,14 @@ codeunit 1432 "Satisfaction Survey Impl."
         Commit();
 
         Session.LogMessage('000098O', NPSPageTelemetryTxt, Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', NpsCategoryTxt);
-        PAGE.RunModal(PAGE::"Satisfaction Survey");
+        Page.RunModal(Page::"Satisfaction Survey");
         Session.LogMessage('000098P', NPSPageTelemetryTxt, Verbosity::Normal, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, 'Category', NpsCategoryTxt);
         exit(true);
     end;
 
     procedure ResetState(): Boolean
     var
+        [SecurityFiltering(SecurityFilter::Ignored)]
         NetPromoterScore: Record "Net Promoter Score";
     begin
         if not NetPromoterScore.WritePermission() then
@@ -126,6 +127,7 @@ codeunit 1432 "Satisfaction Survey Impl."
 
     procedure ResetCache(): Boolean
     var
+        [SecurityFiltering(SecurityFilter::Ignored)]
         NetPromoterScoreSetup: Record "Net Promoter Score Setup";
     begin
         if not NetPromoterScoreSetup.WritePermission() then
@@ -137,6 +139,7 @@ codeunit 1432 "Satisfaction Survey Impl."
 
     procedure ActivateSurvey(): Boolean
     var
+        [SecurityFiltering(SecurityFilter::Ignored)]
         NetPromoterScore: Record "Net Promoter Score";
         EarliestActivateTime: DateTime;
         Puid: Text;
@@ -203,6 +206,7 @@ codeunit 1432 "Satisfaction Survey Impl."
 
     procedure DeactivateSurvey(): Boolean
     var
+        [SecurityFiltering(SecurityFilter::Ignored)]
         NetPromoterScore: Record "Net Promoter Score";
     begin
         if not IsSupported() then begin
@@ -359,12 +363,14 @@ codeunit 1432 "Satisfaction Survey Impl."
     var
         ClientTypeManagement: Codeunit "Client Type Management";
     begin
-        exit(ClientTypeManagement.GetCurrentClientType() in [CLIENTTYPE::Phone, CLIENTTYPE::Tablet]);
+        exit(ClientTypeManagement.GetCurrentClientType() in [ClientType::Phone, ClientType::Tablet]);
     end;
 
     local procedure HasWritePermission(): Boolean
     var
+        [SecurityFiltering(SecurityFilter::Ignored)]
         NetPromoterScoreSetup: Record "Net Promoter Score Setup";
+        [SecurityFiltering(SecurityFilter::Ignored)]
         NetPromoterScore: Record "Net Promoter Score";
     begin
         if not NetPromoterScoreSetup.WritePermission() then

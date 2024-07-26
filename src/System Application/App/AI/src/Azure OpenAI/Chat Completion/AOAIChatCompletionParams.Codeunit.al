@@ -5,7 +5,7 @@
 namespace System.AI;
 
 /// <summary>
-/// Represents the Chat Completion parameters used by the API. 
+/// Represents the Chat Completion parameters used by the API.
 /// See more details at https://aka.ms/AAlrz36.
 /// </summary>
 codeunit 7761 "AOAI Chat Completion Params"
@@ -82,6 +82,18 @@ codeunit 7761 "AOAI Chat Completion Params"
     procedure SetMaxTokens(NewMaxTokens: Integer)
     begin
         AOAIChatComplParamsImpl.SetMaxTokens(NewMaxTokens);
+    end;
+
+    /// <summary>
+    /// Sets if the model should return a valid JSON object as a chat completion.
+    /// </summary>
+    /// <param name="NewJsonMode">The new Json mode for the chat completion: true or false.</param>
+    /// <remarks>Default is false.</remarks>
+    /// <remarks>When true, the model will return a valid JSON object as a chat completion. Including guidance to the model that it should produce JSON as part of the messages conversation is required</remarks>
+    /// <remarks>When true, the word 'json' must be included in at least one message.</remarks>
+    procedure SetJsonMode(NewJsonMode: Boolean)
+    begin
+        AOAIChatComplParamsImpl.SetJsonMode(NewJsonMode);
     end;
 
     /// <summary>

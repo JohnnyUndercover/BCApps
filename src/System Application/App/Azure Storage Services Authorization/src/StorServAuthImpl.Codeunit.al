@@ -11,8 +11,7 @@ codeunit 9063 "Stor. Serv. Auth. Impl."
     InherentEntitlements = X;
     InherentPermissions = X;
 
-    [NonDebuggable]
-    procedure CreateSAS(SigningKey: Text; SignedVersion: Enum "Storage Service API Version"; SignedServices: List of [Enum "SAS Service Type"]; SignedResources: List of [Enum "SAS Resource Type"]; SignedPermissions: List of [Enum "SAS Permission"]; SignedExpiry: DateTime): Interface "Storage Service Authorization"
+    procedure CreateSAS(SigningKey: SecretText; SignedVersion: Enum "Storage Service API Version"; SignedServices: List of [Enum "SAS Service Type"]; SignedResources: List of [Enum "SAS Resource Type"]; SignedPermissions: List of [Enum "SAS Permission"]; SignedExpiry: DateTime): Interface "Storage Service Authorization"
     var
         OptionalParams: Record "SAS Parameters";
     begin
@@ -20,8 +19,7 @@ codeunit 9063 "Stor. Serv. Auth. Impl."
         exit(CreateSAS(SigningKey, SignedVersion, SignedServices, SignedResources, SignedPermissions, SignedExpiry, OptionalParams));
     end;
 
-    [NonDebuggable]
-    procedure CreateSAS(SigningKey: Text; SignedVersion: Enum "Storage Service API Version"; SignedServices: List of [Enum "SAS Service Type"]; SignedResources: List of [Enum "SAS Resource Type"]; SignedPermissions: List of [Enum "SAS Permission"]; SignedExpiry: DateTime; OptionalParams: Record "SAS Parameters"): Interface "Storage Service Authorization"
+    procedure CreateSAS(SigningKey: SecretText; SignedVersion: Enum "Storage Service API Version"; SignedServices: List of [Enum "SAS Service Type"]; SignedResources: List of [Enum "SAS Resource Type"]; SignedPermissions: List of [Enum "SAS Permission"]; SignedExpiry: DateTime; OptionalParams: Record "SAS Parameters"): Interface "Storage Service Authorization"
     var
         StorServAuthSAS: Codeunit "Stor. Serv. Auth. SAS";
     begin
@@ -33,7 +31,10 @@ codeunit 9063 "Stor. Serv. Auth. Impl."
         StorServAuthSAS.SetSignedExpiry(SignedExpiry);
 
         // Set optional parameters
-        StorServAuthSAS.SetSignedStart(CurrentDateTime());
+        if OptionalParams.SignedStart <> 0DT then
+          StorServAuthSAS.SetSignedStart(OptionalParams.SignedStart)
+        else
+          StorServAuthSAS.SetSignedStart(CurrentDateTime());
         StorServAuthSAS.SetIPrange(OptionalParams.SignedIp);
         StorServAuthSAS.SetProtocol(OptionalParams.SignedProtocol);
         StorServAuthSAS.SetSignedEncryptionScope(OptionalParams.SignedEncryptionScope);
@@ -41,8 +42,7 @@ codeunit 9063 "Stor. Serv. Auth. Impl."
         exit(StorServAuthSAS);
     end;
 
-    [NonDebuggable]
-    procedure SharedKey(SharedKeyToUse: Text; ApiVersion: Enum "Storage Service API Version"): Interface "Storage Service Authorization"
+    procedure SharedKey(SharedKeyToUse: SecretText; ApiVersion: Enum "Storage Service API Version"): Interface "Storage Service Authorization"
     var
         StorServAuthSharedKey: Codeunit "Stor. Serv. Auth. Shared Key";
     begin
@@ -52,8 +52,7 @@ codeunit 9063 "Stor. Serv. Auth. Impl."
         exit(StorServAuthSharedKey);
     end;
 
-    [NonDebuggable]
-    procedure ReadySAS(SASToken: Text): Interface "Storage Service Authorization"
+    procedure ReadySAS(SASToken: SecretText): Interface "Storage Service Authorization"
     var
         StorServAuthReadySAS: Codeunit "Stor. Serv. Auth. Ready SAS";
     begin
